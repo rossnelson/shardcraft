@@ -23,7 +23,7 @@
 <button
 	class="gem"
 	class:selected
-	{onclick}
+	on:click={onclick}
 	in:scale={{ duration: 300 }}
 	out:fade={{ duration: 200 }}
 >
