@@ -1,28 +1,19 @@
-import { writable, derived } from 'svelte/store';
-import type { Board, Position, GameState } from '$lib/core/types';
+import { writable } from 'svelte/store';
+import type { Board, Position } from '$lib/core/types';
 import { createBoard } from '$lib/core/board';
 import { executeSwap } from '$lib/core/swap';
 import { findMatches, removeMatches } from '$lib/core/match';
 import { refillBoard } from '$lib/core/gravity';
-import { calculateTotalScore } from '$lib/core/score';
 import { DEFAULT_CONFIG } from '$lib/core/constants';
 
 type GameStoreState = {
   board: Board;
-  score: number;
-  moves: number;
-  state: GameState;
   selectedPosition: Position | null;
-  comboCount: number;
 };
 
 const initialState = (): GameStoreState => ({
   board: createBoard(),
-  score: 0,
-  moves: 0,
-  state: 'idle',
-  selectedPosition: null,
-  comboCount: 0
+  selectedPosition: null
 });
 
 const createGameStore = () => {
@@ -32,10 +23,9 @@ const createGameStore = () => {
     const matches = findMatches(currentState.board);
 
     if (matches.length === 0) {
-      return { ...currentState, comboCount: 0 };
+      return currentState;
     }
 
-    const scoreGained = calculateTotalScore(matches, currentState.comboCount);
     const boardWithoutMatches = removeMatches(currentState.board, matches);
     const refilledBoard = refillBoard(
       boardWithoutMatches,
@@ -44,18 +34,12 @@ const createGameStore = () => {
 
     return {
       ...currentState,
-      board: refilledBoard,
-      score: currentState.score + scoreGained,
-      comboCount: currentState.comboCount + 1
+      board: refilledBoard
     };
   };
 
   const handleSwap = (from: Position, to: Position): void => {
     update((state) => {
-      if (state.state !== 'playing') {
-        return state;
-      }
-
       const swapResult = executeSwap(state.board, from, to);
 
       if (!swapResult.isValid) {
@@ -65,7 +49,6 @@ const createGameStore = () => {
       let newState: GameStoreState = {
         ...state,
         board: swapResult.board,
-        moves: state.moves + 1,
         selectedPosition: null
       };
 
@@ -81,17 +64,8 @@ const createGameStore = () => {
 
   return {
     subscribe,
-    start: () =>
-      update((state) => ({
-        ...state,
-        state: 'playing'
-      })),
     selectGem: (position: Position) =>
       update((state) => {
-        if (state.state !== 'playing') {
-          return state;
-        }
-
         if (!state.selectedPosition) {
           return { ...state, selectedPosition: position };
         }

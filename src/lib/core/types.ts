@@ -38,8 +38,6 @@ export type SwapResult = {
   isValid: boolean;
 };
 
-export type GameState = 'idle' | 'playing' | 'paused' | 'gameover';
-
 export type GameConfig = {
   rows: number;
   cols: number;
