@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Gem as GemType } from "$lib/core/types";
-	import { scale, fade } from "svelte/transition";
+	import { crossfade } from "svelte/transition";
+	import { quintOut } from "svelte/easing";
 	import { UI_SPRITES } from "$lib/utils/sprites";
 
 	type Props = {
@@ -16,6 +17,20 @@
 		return `/assets/gems/original/icon_${normalizedType}_00.png`;
 	};
 
+	const [send, receive] = crossfade({
+		duration: 400,
+		easing: quintOut,
+		fallback: (node) => {
+			return {
+				duration: 400,
+				css: (t) => `
+					transform: translateY(${(1 - t) * -100}px);
+					opacity: ${t};
+				`
+			};
+		}
+	});
+
 	const SCALE = 1.15;
 	const tile = UI_SPRITES.tileDarkLarge;
 </script>
@@ -24,8 +39,8 @@
 	class="gem"
 	class:selected
 	on:click={onclick}
-	in:scale={{ duration: 300 }}
-	out:fade={{ duration: 200 }}
+	in:receive={{ key: gem.id }}
+	out:send={{ key: gem.id }}
 >
 	<img src={getGemImage(gem.type)} alt={gem.type} draggable="false" />
 </button>

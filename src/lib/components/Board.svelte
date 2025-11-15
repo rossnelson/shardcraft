@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { game } from "$lib/stores/game";
 	import Gem from "./Gem.svelte";
+	import { flip } from "svelte/animate";
 
 	const handleGemClick = (row: number, col: number) => {
+		console.log('Clicked gem at', row, col);
 		game.selectGem({ row, col });
 	};
 
@@ -18,12 +20,16 @@
 <div class="board">
 	{#each $game.board.gems as row, rowIndex (rowIndex)}
 		<div class="row">
-			{#each row as gem, colIndex (gem.id)}
-				<Gem
-					{gem}
-					selected={isSelected(rowIndex, colIndex)}
-					onclick={() => handleGemClick(rowIndex, colIndex)}
-				/>
+			{#each row as gem, colIndex (gem?.id ?? `empty-${rowIndex}-${colIndex}`)}
+				<div class="gem-wrapper" animate:flip={{ duration: 400 }}>
+					{#if gem}
+						<Gem
+							{gem}
+							selected={isSelected(rowIndex, colIndex)}
+							onclick={() => handleGemClick(rowIndex, colIndex)}
+						/>
+					{/if}
+				</div>
 			{/each}
 		</div>
 	{/each}
@@ -49,5 +55,10 @@
 
 	.row:last-child {
 		margin-bottom: 0;
+	}
+
+	.gem-wrapper {
+		width: 64px;
+		height: 64px;
 	}
 </style>

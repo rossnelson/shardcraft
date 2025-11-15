@@ -88,7 +88,7 @@ export const fillEmptySpaces = (
   gemTypes: GemType[] = DEFAULT_CONFIG.gemTypes
 ): Board => {
   const newGems = board.gems.map((row) =>
-    row.map((gem) => (gem ? gem : createGem(randomGemType(gemTypes))))
+    row.map((gem) => gem ?? createGem(randomGemType(gemTypes)))
   );
 
   return { ...board, gems: newGems };

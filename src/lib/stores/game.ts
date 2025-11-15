@@ -19,60 +19,107 @@ const initialState = (): GameStoreState => ({
 const createGameStore = () => {
   const { subscribe, set, update } = writable<GameStoreState>(initialState());
 
-  const processMatches = (currentState: GameStoreState): GameStoreState => {
+  const processMatchesAsync = async (): Promise<void> => {
+    let currentState = { ...initialState() };
+    update((state) => {
+      currentState = state;
+      return state;
+    });
+
     const matches = findMatches(currentState.board);
 
     if (matches.length === 0) {
-      return currentState;
+      return;
     }
 
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
     const boardWithoutMatches = removeMatches(currentState.board, matches);
+    update((state) => ({
+      ...state,
+      board: boardWithoutMatches
+    }));
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
     const refilledBoard = refillBoard(
       boardWithoutMatches,
       DEFAULT_CONFIG.gemTypes
     );
-
-    return {
-      ...currentState,
+    update((state) => ({
+      ...state,
       board: refilledBoard
-    };
+    }));
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    if (findMatches(refilledBoard).length > 0) {
+      await processMatchesAsync();
+    }
   };
 
-  const handleSwap = (from: Position, to: Position): void => {
+  const handleSwap = async (
+    from: Position,
+    to: Position
+  ): Promise<void> => {
+    let currentState = { ...initialState() };
     update((state) => {
-      const swapResult = executeSwap(state.board, from, to);
-
-      if (!swapResult.isValid) {
-        return state;
-      }
-
-      let newState: GameStoreState = {
-        ...state,
-        board: swapResult.board,
-        selectedPosition: null
-      };
-
-      newState = processMatches(newState);
-
-      while (findMatches(newState.board).length > 0) {
-        newState = processMatches(newState);
-      }
-
-      return newState;
+      currentState = state;
+      return state;
     });
+
+    console.log('Attempting swap from', from, 'to', to);
+    console.log(
+      'Board before swap:',
+      currentState.board.gems[from.row][from.col],
+      currentState.board.gems[to.row][to.col]
+    );
+    const swapResult = executeSwap(currentState.board, from, to);
+    console.log('Swap result:', swapResult.isValid);
+
+    if (!swapResult.isValid) {
+      console.log('Swap not valid');
+      return;
+    }
+
+    console.log(
+      'Board after swap:',
+      swapResult.board.gems[from.row][from.col],
+      swapResult.board.gems[to.row][to.col]
+    );
+    console.log('Matches found:', swapResult.matches);
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    update((state) => ({
+      ...state,
+      board: swapResult.board,
+      selectedPosition: null
+    }));
+
+    await processMatchesAsync();
   };
 
   return {
     subscribe,
-    selectGem: (position: Position) =>
+    selectGem: (position: Position) => {
+      let shouldSwap = false;
+      let swapFrom: Position | null = null;
+
       update((state) => {
         if (!state.selectedPosition) {
           return { ...state, selectedPosition: position };
         }
 
-        handleSwap(state.selectedPosition, position);
+        shouldSwap = true;
+        swapFrom = state.selectedPosition;
         return { ...state, selectedPosition: null };
-      }),
+      });
+
+      if (shouldSwap && swapFrom) {
+        handleSwap(swapFrom, position);
+      }
+    },
     reset: () => set(initialState())
   };
 };

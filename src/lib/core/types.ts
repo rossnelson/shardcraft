@@ -10,37 +10,37 @@ export type GemType =
   | 'square'
   | 'circular';
 
-export type Position = {
+export interface Position {
   row: number;
   col: number;
-};
+}
 
-export type Gem = {
+export interface Gem {
   type: GemType;
   id: string;
-};
+}
 
-export type Board = {
+export interface Board {
   gems: Gem[][];
   rows: number;
   cols: number;
-};
+}
 
-export type Match = {
+export interface Match {
   positions: Position[];
   type: GemType;
   length: number;
-};
+}
 
-export type SwapResult = {
+export interface SwapResult {
   board: Board;
   matches: Match[];
   isValid: boolean;
-};
+}
 
-export type GameConfig = {
+export interface GameConfig {
   rows: number;
   cols: number;
   gemTypes: GemType[];
   minMatchLength: number;
-};
+}
