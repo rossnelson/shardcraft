@@ -2,25 +2,28 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
 COPY . .
-RUN npm run build
+RUN pnpm build
 
 FROM node:20-alpine
 
 WORKDIR /app
 
-COPY --from=builder /app/build ./build
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/static ./static
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
-RUN npm ci --omit=dev
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/package.json /app/pnpm-lock.yaml ./
+
+RUN pnpm install --prod --frozen-lockfile
 
 ENV NODE_ENV=production
 ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["node", "build"]
+CMD ["node", "build/index.js"]
