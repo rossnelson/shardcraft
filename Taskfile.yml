@@ -1,0 +1,54 @@
+version: '3'
+
+tasks:
+  dev:
+    desc: Start development server
+    cmds:
+      - npm run dev
+
+  build:
+    desc: Build for production
+    cmds:
+      - echo "🔨 Building shardcraft..."
+      - npm run build
+      - echo "✅ Build complete"
+
+  test:
+    desc: Run tests
+    cmds:
+      - npm test
+
+  lint:
+    desc: Lint code
+    cmds:
+      - echo "🔍 Linting..."
+      - npm run lint
+      - echo "✅ Linting passed"
+
+  format:
+    desc: Format code
+    cmds:
+      - echo "✨ Formatting..."
+      - npm run format
+      - echo "✅ Formatting complete"
+
+  docker:build:
+    desc: Build Docker image
+    cmds:
+      - |
+        IMAGE_NAME=${IMAGE_NAME:-shardcraft}
+        VERSION=${VERSION:-local}
+
+        docker build -t ${IMAGE_NAME}:${VERSION} .
+        echo "✅ Built ${IMAGE_NAME}:${VERSION}"
+
+  docker:push:
+    desc: Push Docker image to registry
+    cmds:
+      - |
+        REGISTRY=${REGISTRY:-registry.loomis.io}
+        IMAGE_NAME=${IMAGE_NAME:-shardcraft}
+        VERSION=${VERSION:-local}
+        docker tag ${IMAGE_NAME}:${VERSION} ${REGISTRY}/${IMAGE_NAME}:${VERSION}
+        docker push ${REGISTRY}/${IMAGE_NAME}:${VERSION}
+        echo "✅ Pushed ${REGISTRY}/${IMAGE_NAME}:${VERSION}"
