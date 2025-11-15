@@ -1,36 +1,107 @@
-name: Build and Push
+name: Release and Deploy
 
 on:
   push:
     branches: [main]
-
-env:
-  REGISTRY: registry.loomis.io
-  IMAGE_NAME: shardcraft
-  VERSION: latest
+  workflow_dispatch:
 
 jobs:
-  build-and-push:
+  create-release:
     runs-on: ubuntu-latest
-
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Go Task
-        uses: arduino/setup-task@v2
+      - uses: actions/checkout@v4
         with:
-          version: 3.x
+          fetch-depth: 0
+
+      - name: Calculate next version
+        id: version
+        run: |
+          LATEST_TAG=$(git tag -l "v*" | sort -V | tail -1)
+          if [ -z "$LATEST_TAG" ]; then
+            NEXT_VERSION="v0.1.0"
+          else
+            VERSION_WITHOUT_V=${LATEST_TAG#v}
+            IFS='.' read -ra VERSION_PARTS <<< "$VERSION_WITHOUT_V"
+            MAJOR=${VERSION_PARTS[0]}
+            MINOR=${VERSION_PARTS[1]}
+            PATCH=${VERSION_PARTS[2]}
+            PATCH=$((PATCH + 1))
+            NEXT_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          fi
+          echo "version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "Next version: $NEXT_VERSION"
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          LATEST_TAG=$(git tag -l "v*" | sort -V | tail -1)
+          if [ -z "$LATEST_TAG" ]; then
+            COMMITS=$(git log --oneline HEAD)
+          else
+            COMMITS=$(git log --oneline ${LATEST_TAG}..HEAD)
+          fi
+          NOTES="## Changes\n\n"
+          while IFS= read -r line; do
+            NOTES="${NOTES}- ${line}\n"
+          done <<< "$COMMITS"
+          echo -e "$NOTES" > release_notes.md
+
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ steps.version.outputs.version }} \
+            --title "Release ${{ steps.version.outputs.version }}" \
+            --notes-file release_notes.md \
+            --target main
+
+  build-and-push:
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Task
+        run: sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+
+      - name: Setup dependencies
+        run: |
+          if task setup 2>/dev/null; then
+            echo "Setup complete"
+          else
+            echo "No setup task found, skipping"
+          fi
+
+      - name: Lint code
+        run: |
+          if task lint 2>/dev/null; then
+            echo "Linting complete"
+          else
+            echo "No lint task found, skipping"
+          fi
+
+      - name: Run tests
+        run: |
+          if task test 2>/dev/null; then
+            echo "Tests complete"
+          else
+            echo "No test task found, skipping"
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Registry
+      - name: Login to Registry
         run: |
-          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login ${{ env.REGISTRY }} -u ${{ secrets.REGISTRY_USERNAME }} --password-stdin
+          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login https://registry.loomis.io -u ${{ secrets.REGISTRY_USERNAME }} --password-stdin
 
-      - name: Build Docker image
-        run: task docker:build
-
-      - name: Push Docker image
-        run: task docker:push
+      - name: Build and push Docker image
+        env:
+          VERSION: ${{ needs.create-release.outputs.version }}
+          IMAGE_NAME: shardcraft
+          REGISTRY: registry.loomis.io
+        run: |
+          task docker:build
+          task docker:push

@@ -1,6 +1,11 @@
 version: '3'
 
 tasks:
+  setup:
+    desc: Install dependencies
+    cmds:
+      - npm ci
+
   dev:
     desc: Start development server
     cmds:
